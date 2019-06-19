@@ -120,7 +120,7 @@ args.ckp_prefix        = '{}_nb_cl_fg_{}_nb_cl_{}_nb_protos_{}'.format(args.ckp_
 np.random.seed(args.random_seed)        # Fix the random seed
 print(args)
 ########################################
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #transform_train = transforms.Compose([
 #    transforms.RandomCrop(32, padding=4),
 #    transforms.RandomHorizontalFlip(),
@@ -178,11 +178,26 @@ X_valid_total, Y_valid_total = split_images_labels(testset.imgs)
 # Launch the different runs
 for iteration_total in range(args.nb_runs):
     # Select the order for the class learning
-    order_name = "./checkpoint/seed_{}_{}_order_run_{}.pkl".format(args.random_seed, args.dataset, iteration_total)
+    # order_name = "./checkpoint/seed_{}_{}_order_run_{}.pkl".format(args.random_seed, args.dataset, iteration_total)
+    # print("Order name:{}".format(order_name))
+    # if os.path.exists(order_name):
+    #     print("Loading orders")
+    #     order = utils_pytorch.unpickle(order_name)
+    # else:
+    #     print("Generating orders")
+    #     order = np.arange(args.num_classes)
+    #     np.random.shuffle(order)
+    #     utils_pytorch.savepickle(order, order_name)
+    # order_list = list(order)
+    # print(order_list)
+
+    order_name = "./checkpoint/conversion.pkl"
     print("Order name:{}".format(order_name))
     if os.path.exists(order_name):
         print("Loading orders")
-        order = utils_pytorch.unpickle(order_name)
+        order_dict = utils_pytorch.unpickle(order_name)
+        flip_order = {v:k for k,v in order_dict.items()}
+        order = np.array([ flip_order[i] for i in range(1000)])
     else:
         print("Generating orders")
         order = np.arange(args.num_classes)
@@ -190,6 +205,8 @@ for iteration_total in range(args.nb_runs):
         utils_pytorch.savepickle(order, order_name)
     order_list = list(order)
     print(order_list)
+
+
 
     # Initialization of the variables for this run
     X_valid_cumuls    = []
@@ -764,6 +781,7 @@ for iteration_total in range(args.nb_runs):
             evalloader = torch.utils.data.DataLoader(evalset, batch_size=eval_batch_size,
                     shuffle=False, num_workers=args.num_workers, pin_memory=True)        
             cumul_acc = compute_accuracy(tg_model, tg_feature_model, current_means, evalloader)
+            #.............
             top1_acc_list_cumul[iteration, :, iteration_total] = np.array(cumul_acc).T
             ##############################################################   
 

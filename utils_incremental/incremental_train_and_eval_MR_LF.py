@@ -17,6 +17,7 @@ from PIL import Image
 from scipy.spatial.distance import cdist
 from sklearn.metrics import confusion_matrix
 from utils_pytorch import *
+from .compute_accuracy import get_topk
 
 cur_features = []
 ref_features = []
@@ -156,12 +157,18 @@ def incremental_train_and_eval_MR_LF(epochs, tg_model, ref_model, tg_optimizer, 
         test_loss = 0
         correct = 0
         total = 0
+        top1_correct = 0 
+        top5_correct = 0
         with torch.no_grad():
             for batch_idx, (inputs, targets) in enumerate(testloader):
                 inputs, targets = inputs.to(device), targets.to(device)
                 outputs = tg_model(inputs)
-                loss = nn.CrossEntropyLoss(weight_per_class)(outputs, targets)
 
+                _top1, _top5 = get_topk(outputs, targets, topk=(1, 5))
+                top1_correct +=_top1
+                top5_correct +=_top5
+
+                loss = nn.CrossEntropyLoss(weight_per_class)(outputs, targets)
                 test_loss += loss.item()
                 _, predicted = outputs.max(1)
                 total += targets.size(0)
@@ -171,6 +178,8 @@ def incremental_train_and_eval_MR_LF(epochs, tg_model, ref_model, tg_optimizer, 
                 #    % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
         print('Test set: {} Test Loss: {:.4f} Acc: {:.4f}'.format(\
             len(testloader), test_loss/(batch_idx+1), 100.*correct/total))
+
+        print ("Top 1: {:.4f} Top 5: {:.4f}".format(top1_correct/total,top5_correct/total))
 
     if iteration > start_iteration:
         print("Removing register_forward_hook")

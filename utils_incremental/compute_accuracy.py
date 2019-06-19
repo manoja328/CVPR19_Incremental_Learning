@@ -18,6 +18,31 @@ from scipy.spatial.distance import cdist
 from sklearn.metrics import confusion_matrix
 from utils_pytorch import *
 
+def get_topk(output, target, topk=(1,), output_has_class_ids=False):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    if not output_has_class_ids:
+        output = torch.Tensor(output)
+    else:
+        output = torch.LongTensor(output)
+    target = torch.LongTensor(target)
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = output.shape[0]
+        if not output_has_class_ids:
+            _, pred = output.topk(maxk, 1, True, True)
+            pred = pred.t()
+        else:
+            pred = output[:, :maxk].t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            #res.append(correct_k.mul_(100.0 / batch_size).item())
+            res.append(correct_k.item())
+        return res
+
+
 def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=None, print_info=True, device=None):
     if device is None:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -35,6 +60,8 @@ def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=
     correct_icarl = 0
     correct_ncm = 0
     total = 0
+    top1_correct = 0 
+    top5_correct = 0
     with torch.no_grad():
         for batch_idx, (inputs, targets) in enumerate(evalloader):
             inputs, targets = inputs.to(device), targets.to(device)
@@ -47,6 +74,12 @@ def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=
                 assert(outputs.shape[1] == scale.shape[1])
                 outputs = outputs / scale.repeat(outputs.shape[0], 1).type(torch.FloatTensor).to(device)
             _, predicted = outputs.max(1)
+
+            _top1, _top5 = get_topk(outputs, targets, topk=(1, 5))
+            top1_correct +=_top1
+            top5_correct +=_top5
+
+
             correct += predicted.eq(targets).sum().item()
 
             outputs_feature = np.squeeze(tg_feature_model(inputs))
@@ -70,5 +103,9 @@ def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=
     cnn_acc = 100.*correct/total
     icarl_acc = 100.*correct_icarl/total
     ncm_acc = 100.*correct_ncm/total
+
+
+    print ("Top 1: {:.4f} Top 5: {:.4f}".format(top1_correct/total,top5_correct/total))
+
 
     return [cnn_acc, icarl_acc, ncm_acc]
