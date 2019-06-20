@@ -47,7 +47,7 @@ def get_topk(output, target, topk=(1,), output_has_class_ids=False):
 
 def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=None, print_info=True, device=None):
     if device is None:
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tg_model.eval()
     tg_feature_model.eval()
 
@@ -84,7 +84,8 @@ def compute_accuracy(tg_model, tg_feature_model, class_means, evalloader, scale=
 
             correct += predicted.eq(targets).sum().item()
 
-            outputs_feature = np.squeeze(tg_feature_model(inputs))
+            tg_features = tg_feature_model(inputs)
+            outputs_feature = np.squeeze(tg_features.cpu().numpy())
             # Compute score for iCaRL
             sqd_icarl = cdist(class_means[:,:,0].T, outputs_feature, 'sqeuclidean')
             score_icarl = torch.from_numpy((-sqd_icarl).T).to(device)
