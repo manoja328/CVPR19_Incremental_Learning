@@ -20,11 +20,13 @@ from utils_pytorch import *
 
 def get_topk(output, target, topk=(1,), output_has_class_ids=False):
     """Computes the accuracy over the k top predictions for the specified values of k"""
-    if not output_has_class_ids:
-        output = torch.Tensor(output)
-    else:
-        output = torch.LongTensor(output)
-    target = torch.LongTensor(target)
+    #if not output_has_class_ids:
+    #    output = torch.Tensor(output)
+    #else:
+    #    output = torch.LongTensor(output)
+    #target = torch.LongTensor(target)
+    target = target.long()
+    output = output.float()
     with torch.no_grad():
         maxk = max(topk)
         batch_size = output.shape[0]
